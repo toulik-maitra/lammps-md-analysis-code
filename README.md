@@ -5,9 +5,8 @@
 The `oclimax.py` script is a helper tool that processes molecular dynamics (MD) simulation data to calculate neutron scattering spectra. Here's what it does in simple terms:
 
 ### What is it for?
-- It takes the velocity data from your molecular dynamics simulation (from a file called `velocity.dump`)
+- It takes the `velocity.dump` data from your molecular dynamics simulation 
 - It converts this data into a format that can be used to calculate how neutrons would scatter off your simulated material
-- It's particularly useful for scientists who want to compare their simulations with real experimental data from neutron scattering facilities
 
 ### Main Features:
 1. **Easy Setup**: Creates all necessary files and directories automatically
@@ -16,6 +15,7 @@ The `oclimax.py` script is a helper tool that processes molecular dynamics (MD) 
    - Supports different energy units (cm⁻¹, meV, THz)
    
 ### How to Use:
+0. Make sure that the 'elements' column in the `velocity.dump` file has the desired elements you are looking for. 
 1. Make sure you have a `velocity.dump` file from your LAMMPS simulation in your working directory
 2. Run the script using Python:
    ```bash
