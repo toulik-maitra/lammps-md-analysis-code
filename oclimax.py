@@ -1,3 +1,15 @@
+"""
+OCLIMAX Script
+------------------------------------------
+This script is a helper tool that processes molecular dynamics (MD) 
+simulation data to calculate neutron scattering spectra.
+
+Edited by: Toulik Maitra
+Institution: University of California, Davis
+Date: 2025
+"""
+
+
 import os
 import argparse
 from shutil import copyfile
