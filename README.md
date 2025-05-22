@@ -15,11 +15,11 @@ The `oclimax.py` script is a helper tool that processes molecular dynamics (MD) 
    - Supports different energy units (cm⁻¹, meV, THz)
    
 ### How to Use:
-0. Make sure that the 'elements' column in the `velocity.dump` file has the desired elements you are looking for. 
+0. Make sure that the `elements` column in the `velocity.dump` file has the desired elements you are looking for. 
 1. Make sure you have a `velocity.dump` file from your LAMMPS simulation in your working directory
 2. Run the script using Python:
    ```bash
-   python oclimax.py --timestep YOUR_TIMESTEP
+   python3 oclimax.py --timestep YOUR_TIMESTEP
    ```
    (Replace YOUR_TIMESTEP with the actual timestep used in your MD simulation in femtoseconds)
 
