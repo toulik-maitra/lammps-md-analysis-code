@@ -15,13 +15,14 @@ import argparse
 from shutil import copyfile
 
 
-def write_params(task, e_unit):
+def write_params(task, e_unit, restart=False):
     """
     Creates parameters file for OCLIMAX
     Args:
     task (int): Defines approximation method where 
             0:inc approx. 1:coh+inc. 2:single-xtal Q-E. 3:single-xtal Q-Q.
     e_unit (int): Defines energy units such that 0:cm-1 1:meV 2:THz.
+    restart (bool): Whether to run in restart mode
     #################################################################
     Return:
     out.params in the folder
@@ -31,8 +32,8 @@ def write_params(task, e_unit):
                 'TASK    =         {} # 0:inc approx. 1:coh+inc. 2:single-xtal Q-E. 3:single-xtal Q-Q\n'
                 'INSTR   =         0  # 0:VISION 1:indirect traj 2:direct traj 3:Q-E or Q-Q mesh\n'
                 'TEMP    =      5.00  # Temperature [K]\n'
-                'E_UNIT  =         0 # Energy unit [eu] (0:cm-1,1:meV,2:THz)\n'
-                'OUTPUT  =         0  # 0:standard, 1:restart, 2:SPE, 3:full, 4:DOS, 5:modes\n'
+                'E_UNIT  =         {} # Energy unit [eu] (0:cm-1,1:meV,2:THz)\n'
+                'OUTPUT  =         {}  # 0:standard, 1:restart, 2:SPE, 3:full, 4:DOS, 5:modes\n'
 
                 '## Additional general parameters\n'
                 'MAXO    =        10  # Maximum order of excitation\n'
@@ -75,7 +76,7 @@ def write_params(task, e_unit):
                 '## Wing parameters\n'
                 'WING    =         0  # Wing calculation (0:no wing,1:isotropic,2:ST tensor)\n'
                 'A_ISO   =    0.0350  # Isotropic A_external for wing calculation\n'
-                'W_WIDTH =     150.0  # Energy width [eu] of initial wing)\n' .format(task, e_unit))
+                'W_WIDTH =     150.0  # Energy width [eu] of initial wing)\n' .format(task, e_unit, 1 if restart else 0))
         
 def check_oclimax_success(output_dir):
     """
@@ -84,7 +85,7 @@ def check_oclimax_success(output_dir):
     expected_file = os.path.join(output_dir, 'out_vis_inc_5K.csv')
     return os.path.exists(expected_file) and os.path.getsize(expected_file) > 0
 
-def oclimax(dt, params=None, task=0, e_unit=0):
+def oclimax(dt, params=None, task=0, e_unit=0, restart=False):
     """
     Creates oclimax_[timestep] directory, writes oclimax parameters file and runs oclimax simulation for Lammps MD.
     """
@@ -95,17 +96,21 @@ def oclimax(dt, params=None, task=0, e_unit=0):
     # Create directory with timestep in name
     output_dir = f'oclimax_{dt}fs'
     os.makedirs(output_dir, exist_ok=True)
-    copyfile('velocity.dump', f'{output_dir}/velocity.dump')
+    
+    # Only copy velocity.dump if not in restart mode
+    if not restart:
+        copyfile('velocity.dump', f'{output_dir}/velocity.dump')
     
     # Change to oclimax directory
     os.chdir(output_dir)
 
     if not params:
-        write_params(task, e_unit)
+        write_params(task, e_unit, restart=restart)
         params = "out.params"
     
     # Run OCLIMAX
-    os.system('oclimax convert -lt velocity.dump {} 1>> ocl.out 2>> ocl.err'.format(float(dt)))
+    if not restart:
+        os.system('oclimax convert -lt velocity.dump {} 1>> ocl.out 2>> ocl.err'.format(float(dt)))
     os.system('oclimax run out.tclimax {} 1>> ocl.out 2>> ocl.err'.format(params))
 
     # Check if run was successful
@@ -128,9 +133,10 @@ def oclimax(dt, params=None, task=0, e_unit=0):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--timestep", type=float, default=1., help="timestep*freq in MD simulation [fs]")
+    parser.add_argument("--restart", action="store_true", help="Restart from previous calculation")
     args = parser.parse_args()
     
-    if oclimax(dt=args.timestep):
+    if oclimax(dt=args.timestep, restart=args.restart):
         exit(0)  # Success
     else:
         exit(1)  # Failure
