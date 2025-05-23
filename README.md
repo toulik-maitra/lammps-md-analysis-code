@@ -91,4 +91,4 @@ All plots are automatically saved in the `analysis_output` directory:
 
 ### Input Files Needed
 - `system.data`: LAMMPS data file
-- `equil20.lammpstrj`: LAMMPS trajectory file
+- `<any traj file>.lammpstrj`: LAMMPS trajectory file
