@@ -37,6 +37,15 @@ TRAJ_FILE = 'equil20.lammpstrj'
 TRAJ_FORMAT = 'LAMMPSDUMP'
 OUTPUT_DIR = 'analysis_output'
 PLOT_DPI = 300
+TIMESTEP = 0.001  # 1 fs = 0.001 ps
+DUMP_FREQ = 1  # Frequency of trajectory dump
+PS_TO_NS = 0.001  # Conversion from ps to ns
+
+# RDF Parameters
+RDF_START = 0  # Start frame for RDF
+RDF_STEP = 10  # Use every nth frame for RDF
+RDF_NBINS = 100  # Number of bins for RDF
+RDF_RANGE = (0, 15)  # Range for RDF calculation in Angstroms
 
 def save_figure(name):
     """Save figure with consistent formatting"""
@@ -44,13 +53,19 @@ def save_figure(name):
     plt.savefig(f'{OUTPUT_DIR}/{name}.png', dpi=PLOT_DPI, bbox_inches='tight')
     plt.close()
 
+def get_time_ns(frame_number):
+    """Convert frame number to time in nanoseconds"""
+    return frame_number * TIMESTEP * DUMP_FREQ * PS_TO_NS
+
 def calculate_rmsd(universe):
     """Calculate Root Mean Square Deviation"""
     print("\nCalculating RMSD...")
     rmsd = RMSD(universe, universe, select='all').run()
+    # Convert frame numbers to time in ns
+    time = np.array([get_time_ns(frame) for frame in range(len(rmsd.rmsd))])
     plt.figure()
-    plt.plot(rmsd.rmsd[:,1], rmsd.rmsd[:,2])
-    plt.xlabel('Time (ps)')
+    plt.plot(time, rmsd.rmsd[:,2])
+    plt.xlabel('Time (ns)')
     plt.ylabel('RMSD (Å)')
     plt.title('Root Mean Square Deviation vs Time')
     save_figure('rmsd')
@@ -76,17 +91,17 @@ def calculate_radius_of_gyration(universe):
         mass_sum = masses.sum()
 
     rg_times, rg_vals = [], []
-    for ts in tqdm(universe.trajectory, desc="Processing frames"):
+    for frame, ts in enumerate(tqdm(universe.trajectory, desc="Processing frames")):
         pos = universe.atoms.positions
         com = (masses[:, None] * pos).sum(axis=0) / mass_sum
         dpos = pos - com
         rg2 = (masses[:, None] * (dpos**2)).sum() / mass_sum
-        rg_times.append(ts.time)
+        rg_times.append(get_time_ns(frame))
         rg_vals.append(np.sqrt(rg2))
 
     plt.figure()
     plt.plot(rg_times, rg_vals)
-    plt.xlabel('Time (ps)')
+    plt.xlabel('Time (ns)')
     plt.ylabel('Rg (Å)')
     plt.title('Radius of Gyration vs Time')
     save_figure('rg')
@@ -95,25 +110,51 @@ def calculate_msd(universe):
     """Calculate Mean Square Displacement"""
     print("Calculating Mean Square Displacement...")
     msd = EinsteinMSD(universe, select='all', msd_type='xyz', fft=True).run()
-    lag_times = np.arange(len(msd.results.timeseries)) * universe.trajectory.dt
+    # Convert frame numbers to time in ns
+    lag_times = np.array([get_time_ns(frame) for frame in range(len(msd.results.timeseries))])
     plt.figure()
     plt.plot(lag_times, msd.results.timeseries)
-    plt.xlabel('Lag time (ps)')
+    plt.xlabel('Lag time (ns)')
     plt.ylabel('MSD (Å²)')
     plt.title('Mean Square Displacement vs Lag Time')
     save_figure('msd')
 
 def calculate_rdf(universe):
-    """Calculate Radial Distribution Function"""
+    """Calculate Radial Distribution Function with optimization"""
     print("Calculating Radial Distribution Function...")
     try:
-        rdf = InterRDF(universe.select_atoms('all'), universe.select_atoms('all')).run()
+        # Get total number of frames
+        n_frames = len(universe.trajectory)
+        
+        # Calculate end frame to maintain good sampling
+        rdf_end = n_frames
+        n_frames_used = (rdf_end - RDF_START) // RDF_STEP
+        
+        print(f"RDF calculation using {n_frames_used} frames out of {n_frames} total frames...")
+        
+        # Create atom selections for RDF
+        all_atoms = universe.select_atoms('all')
+        
+        # Initialize and run RDF with optimized parameters
+        rdf = InterRDF(
+            all_atoms,
+            all_atoms,
+            nbins=RDF_NBINS,
+            range=RDF_RANGE,
+            start=RDF_START,
+            step=RDF_STEP,
+            verbose=True
+        ).run()
+
         plt.figure()
         plt.plot(rdf.bins, rdf.rdf)
         plt.xlabel('Distance (Å)')
         plt.ylabel('g(r)')
-        plt.title('Radial Distribution Function')
+        plt.title(f'Radial Distribution Function\n(using every {RDF_STEP}th frame)')
         save_figure('rdf')
+        
+        print(f"RDF calculation complete using {n_frames_used} frames")
+        
     except Exception as e:
         print(f"Note: RDF analysis skipped - {str(e)}")
 
