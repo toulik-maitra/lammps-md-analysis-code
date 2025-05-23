@@ -33,7 +33,7 @@ The `oclimax.py` script processes molecular dynamics (MD) simulation data to cal
 2. Place the `velocity.dump` file in your working directory
 3. Run the script:
    ```bash
-   python3 oclimax.py --timestep YOUR_TIMESTEP
+   python3 oclimax.py -t YOUR_TIMESTEP
    ```
    Replace YOUR_TIMESTEP = MD simulation timestep in femtoseconds * Dumping Frequency
 
