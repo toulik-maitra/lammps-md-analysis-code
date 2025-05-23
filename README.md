@@ -35,7 +35,7 @@ The `oclimax.py` script processes molecular dynamics (MD) simulation data to cal
    ```bash
    python3 oclimax.py --timestep YOUR_TIMESTEP
    ```
-   Replace YOUR_TIMESTEP with your MD simulation timestep in femtoseconds
+   Replace YOUR_TIMESTEP = MD simulation timestep in femtoseconds * Dumping Frequency
 
 ### Output Files
 - Creates directory: `oclimax_[timestep]fs`
