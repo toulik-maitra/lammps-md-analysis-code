@@ -77,37 +77,23 @@ def write_params(task, e_unit):
                 'A_ISO   =    0.0350  # Isotropic A_external for wing calculation\n'
                 'W_WIDTH =     150.0  # Energy width [eu] of initial wing)\n' .format(task, e_unit))
         
-def run_oclimax(params, dt):
+def check_oclimax_success(output_dir):
     """
-    Runs OCLIMAX convert for Lammps MD trajectory (velocity.dump).
-    Args:
-    params (str): Oclimax parameters file name defined in write_params function.
-    dt (float): MD production timestep*frequency record the traj [fs]
+    Simple check if OCLIMAX completed successfully
     """
-    os.system('oclimax convert -lt velocity.dump {} 1>> ocl.out 2>> ocl.err'.format(float(dt)))
-    os.system('oclimax run out.tclimax {} 1>> ocl.out 2>> ocl.err'.format(params))
-        
+    expected_file = os.path.join(output_dir, 'out_vis_inc_5K.csv')
+    return os.path.exists(expected_file) and os.path.getsize(expected_file) > 0
+
 def oclimax(dt, params=None, task=0, e_unit=0):
     """
     Creates oclimax_[timestep] directory, writes oclimax parameters file and runs oclimax simulation for Lammps MD.
-    Args:
-    dt (float): MD production timestep [fs], (Defaults to 1.0, as we take trajectory every 4 steps)
-    params (str, optional): Oclimax parameters file defined in write_params function. (Defaults to None)
-    task (int, optional): Defines approximation method. 
-    0:inc approx. 1:coh+inc. 2:single-xtal Q-E. 3:single-xtal Q-Q. (Defaults to 0)
-    e_unit (int, optional): Defines energy unit. Defaults to 0 (cm-1).
     """
     print(" ----------------------------------------------------------------- ")
-    print(" Checking for velocity.dump file... ")
+    print(" Starting OCLIMAX calculation... ")
     print(" ----------------------------------------------------------------- ")
     
-    # Check if velocity.dump exists in current directory
-    if not os.path.exists('velocity.dump'):
-        raise FileNotFoundError("velocity.dump file not found in current directory!")
-
     # Create directory with timestep in name
     output_dir = f'oclimax_{dt}fs'
-    print(f" Creating directory: {output_dir}")
     os.makedirs(output_dir, exist_ok=True)
     copyfile('velocity.dump', f'{output_dir}/velocity.dump')
     
@@ -117,16 +103,34 @@ def oclimax(dt, params=None, task=0, e_unit=0):
     if not params:
         write_params(task, e_unit)
         params = "out.params"
-    run_oclimax(params, dt)
+    
+    # Run OCLIMAX
+    os.system('oclimax convert -lt velocity.dump {} 1>> ocl.out 2>> ocl.err'.format(float(dt)))
+    os.system('oclimax run out.tclimax {} 1>> ocl.out 2>> ocl.err'.format(params))
 
+    # Check if run was successful
+    success = check_oclimax_success('.')
     os.chdir('..')
-    print(" ----------------------------------------------------------------- ")
-    print(f" Done conversion! Results are saved in {output_dir}/")
-    print(" Files created: out_vis_inc_5K.csv and out.tclimax")
-    print(" ----------------------------------------------------------------- ")
+    
+    if success:
+        print(" ----------------------------------------------------------------- ")
+        print(" OCLIMAX completed successfully! ")
+        print(f" Results are in: {output_dir}/out_vis_inc_5K.csv")
+        print(" ----------------------------------------------------------------- ")
+    else:
+        print(" ----------------------------------------------------------------- ")
+        print(" ERROR: OCLIMAX run failed! ")
+        print(f" Check {output_dir}/ocl.err for details")
+        print(" ----------------------------------------------------------------- ")
+    
+    return success
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--timestep", type=float, default=1., help="timestep*freq in MD simulation [fs]")
     args = parser.parse_args()
-    oclimax(dt=args.timestep)
+    
+    if oclimax(dt=args.timestep):
+        exit(0)  # Success
+    else:
+        exit(1)  # Failure
